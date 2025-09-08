@@ -1,145 +1,126 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import "./admin.css";
 
-export function AddUserModal({ isOpen, onClose, onSave, defaultData }) {
+export default function UserForm() {
   const [formData, setFormData] = useState({
-    fullName: "",
-    emailAddress: "",
-    role: "user",
-    branchAccess: "" // single value instead of array
+    name: "",
+    email: "",
+    password: "",
+    role: "",
+    folderId: ""
   });
 
-  const [availableFolders, setAvailableFolders] = useState([]);
+  const [folders, setFolders] = useState([]);
 
-  // Prefill form when editing
+  // Fetch folders when role changes
   useEffect(() => {
-    if (defaultData) {
-      setFormData({
-        fullName: defaultData.name || "",
-        emailAddress: defaultData.email || "",
-        role: defaultData.role || "user",
-        branchAccess: defaultData.branch || "" // single branch value
-      });
-    }
-  }, [defaultData]);
-
-  // Fetch folders whenever role changes
-  useEffect(() => {
-    if (formData.role) {
-      axios
-        .get(`/api/folders/${formData.role}`)
-        .then((res) => {
-          setAvailableFolders(res.data); // assume [{id, name}]
-        })
-        .catch((err) => {
-          console.error("Error fetching folders", err);
-          setAvailableFolders([]);
-        });
+    if (formData.role === "user") {
+      axios.get("/api/user/subfolders")
+        .then(res => setFolders(res.data))
+        .catch(err => console.error("Error fetching user subfolders:", err));
+    } else if (formData.role === "ops") {
+      axios.get("/api/ops/subfolders")
+        .then(res => setFolders(res.data))
+        .catch(err => console.error("Error fetching ops subfolders:", err));
+    } else {
+      setFolders([]); // reset if no role selected
     }
   }, [formData.role]);
 
-  const handleSave = () => {
-    onSave(formData);
-    setFormData({
-      fullName: "",
-      emailAddress: "",
-      role: "user",
-      branchAccess: ""
-    });
-    onClose();
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  if (!isOpen) return null;
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    axios.post("/api/users", formData)
+      .then(res => {
+        alert("User saved successfully!");
+        console.log(res.data);
+      })
+      .catch(err => {
+        alert("Error saving user!");
+        console.error(err);
+      });
+  };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ width: "600px" }}>
-        <div className="modal-header">
-          <h5>{defaultData ? "Edit User" : "Add New User"}</h5>
-          <button className="btn-close" onClick={onClose}></button>
-        </div>
+    <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-md">
+      <h2 className="text-xl font-bold mb-4">Add User</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
 
-        <div className="modal-body" style={{ padding: "20px" }}>
-          <div className="row">
-            {/* Left side form fields */}
-            <div className="col-md-6">
-              <div className="form-group mb-3">
-                <label className="form-label">Full Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={formData.fullName}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, fullName: e.target.value }))
-                  }
-                />
-              </div>
+        {/* Name */}
+        <input
+          type="text"
+          name="name"
+          placeholder="Name"
+          value={formData.name}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
+          required
+        />
 
-              <div className="form-group mb-3">
-                <label className="form-label">Email Address</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  value={formData.emailAddress}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      emailAddress: e.target.value
-                    }))
-                  }
-                />
-              </div>
+        {/* Email */}
+        <input
+          type="email"
+          name="email"
+          placeholder="Email"
+          value={formData.email}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
+          required
+        />
 
-              <div className="form-group mb-3">
-                <label className="form-label">Role</label>
-                <select
-                  className="form-select"
-                  value={formData.role}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, role: e.target.value }))
-                  }
-                >
-                  <option value="user">User</option>
-                  <option value="ops">Ops</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-            </div>
+        {/* Password */}
+        <input
+          type="password"
+          name="password"
+          placeholder="Password"
+          value={formData.password}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
+          required
+        />
 
-            {/* Right side: Single-select Dropdown for folder access */}
-            <div className="col-md-6">
-              <label className="form-label">Folder Access</label>
-              <select
-                className="form-select"
-                value={formData.branchAccess}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    branchAccess: e.target.value
-                  }))
-                }
-              >
-                <option value="">-- Select Folder --</option>
-                {availableFolders.map((folder) => (
-                  <option key={folder.id} value={folder.name}>
-                    {folder.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
+        {/* Role Dropdown */}
+        <select
+          name="role"
+          value={formData.role}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
+          required
+        >
+          <option value="">Select Role</option>
+          <option value="user">User</option>
+          <option value="ops">Ops</option>
+        </select>
 
-        <div className="modal-footer">
-          <button className="btn btn-secondary me-2" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" onClick={handleSave}>
-            {defaultData ? "Update User" : "Create User"}
-          </button>
-        </div>
-      </div>
+        {/* Folder Dropdown */}
+        <select
+          name="folderId"
+          value={formData.folderId}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
+          required
+          disabled={!folders.length}
+        >
+          <option value="">Select Folder</option>
+          {folders.map(folder => (
+            <option key={folder.id} value={folder.id}>
+              {folder.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Save Button */}
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+        >
+          Save
+        </button>
+      </form>
     </div>
   );
 }
